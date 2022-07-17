@@ -6,11 +6,12 @@ namespace Napilnik
     {
         static void Main(string[] args)
         {
-            Weapon weapon = new Weapon(2, 2);
-            Bot bot = new Bot(weapon, 10);
-            Player player = new Player(10);
+            ShotGun shotGun = new ShotGun(4, 4);
+            Bot bot = new Bot(shotGun);
+            PlayerHealth player = new PlayerHealth(new Health(10), 1);
 
-            while (player.IsAlive == true)
+
+            while (true)
             {
                 bot.OnSeePlayer(player);
 
@@ -19,7 +20,7 @@ namespace Napilnik
         }
         interface IWeapon
         {
-            void Fire(Creature player);
+            void Fire(PlayerHealth player);
         }
         class Weapon : IWeapon
         {
@@ -47,7 +48,7 @@ namespace Napilnik
                 Console.WriteLine($"{this} : Id reloaded");
             }
 
-            public void Fire(Creature player)
+            public void Fire(PlayerHealth player)
             {
                 _bullets -= 1;
 
@@ -57,63 +58,80 @@ namespace Napilnik
                 player.TakeDamage(_damage);
             }
         }
-
+        class ShotGun : Weapon
+        {
+            public ShotGun(int ammoSize, int damage) : base(ammoSize, damage)
+            {
+            }
+        }
+        /////////////////////////////////////////////////////////
+        // Decorator Pattern on Health and IDamagable #EXAMPLE //
+        /////////////////////////////////////////////////////////
+        #region Decorator
         interface IDamagable
         {
             void TakeDamage(int damage);
         }
-
-        public abstract class Creature : IDamagable
+        
+        class Health : IDamagable
         {
-            public int Health { get; private set; }
+            public int Value { get; private set; }
 
-            public bool IsAlive { get; private set; }
-
-            public Creature(int health)
+            public Health(int value)
             {
-                IsAlive = true;
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException(nameof(value));
 
-                if (health < 0)
-                    throw new ArgumentOutOfRangeException(nameof(health));
-
-                Health = health;
+                Value = value;
             }
             public void TakeDamage(int damage)
             {
                 if (damage < 0)
                     throw new ArgumentOutOfRangeException(nameof(damage));
 
-                Health -= damage;
+                Value -= damage;
 
-                Console.WriteLine($"{this} : I taked Damage({damage}) and my health now equal {Health}");
+                if (Value < 0)
+                    Value = 0;
 
-                if (Health <= 0)
-                {
+                Console.WriteLine($"{this} : I taked Damage({damage}) and my health now equal {Value}");
+
+                if (Value == 0)
                     Console.WriteLine("Я сдох");
-
-                    IsAlive = false;
-                }
-            }
-        }
-
-        class Player : Creature
-        {
-            public Player(int health) : base(health)
-            {
                 
             }
         }
 
-        class Bot : Creature
+        sealed class PlayerHealth : IDamagable 
+        {
+            private readonly int _armor;
+            private readonly IDamagable _health; 
+
+            public PlayerHealth(IDamagable health, int armor) 
+            {
+                if (armor < 0)
+                    throw new ArgumentOutOfRangeException(nameof(armor));
+
+                _armor = armor;
+                _health = health;
+            }
+
+            public void TakeDamage(int damage)
+            {
+                _health.TakeDamage(damage - _armor);
+            }
+        }
+        #endregion
+        sealed class Bot 
         {
             private readonly IWeapon _weapon;
 
-            public Bot(IWeapon weapon, int health) : base(health)
+            public Bot(IWeapon weapon) 
             {
                 _weapon = weapon;
             }
 
-            public void OnSeePlayer(Creature player)
+            public void OnSeePlayer(PlayerHealth player)
             {
                 _weapon.Fire(player);
             }
